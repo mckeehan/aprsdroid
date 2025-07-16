@@ -29,8 +29,9 @@ class GPXImportActivity extends Activity {
       val currentTime = System.currentTimeMillis()
       storeGPXData(gpxData, currentTime)
       
-      // Create metadata entry for visibility control
-      db.setGPXVisibility(currentTime, true)
+      // Create metadata entry for visibility control and name
+      val gpxName = gpxData.metadata.flatMap(_.name).getOrElse("GPX Import")
+      db.setGPXMetadata(currentTime, true, gpxName)
       
       // Notify user of successful import
       val totalItems = gpxData.waypoints.size + gpxData.tracks.size + gpxData.routes.size

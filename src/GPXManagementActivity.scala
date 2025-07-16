@@ -77,8 +77,12 @@ class GPXManagementActivity extends Activity {
       val trackCount = db.getGPXTrackCount(ts)
       val visible = db.getGPXVisibility(ts)
       
-      val dateFormat = new SimpleDateFormat("MMM dd, yyyy HH:mm")
-      val name = s"GPX Import - ${dateFormat.format(new Date(ts))}"
+      val name = db.getGPXName(ts) match {
+        case null => 
+          val dateFormat = new SimpleDateFormat("MMM dd, yyyy HH:mm")
+          s"GPX Import - ${dateFormat.format(new Date(ts))}"
+        case gpxName => gpxName
+      }
       
       gpxFiles += GPXFileInfo(ts, name, waypointCount, trackCount, visible)
     }

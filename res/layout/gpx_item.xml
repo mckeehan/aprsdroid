@@ -24,14 +24,14 @@
             android:layout_height="wrap_content"
             android:textSize="16sp"
             android:textStyle="bold"
-            android:textColor="@android:color/black" />
+            android:textColor="#b0b080" />
 
         <TextView
             android:id="@+id/gpx_info"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:textSize="14sp"
-            android:textColor="@android:color/darker_gray" />
+            android:textColor="#d0d0b0" />
 
     </LinearLayout>
 

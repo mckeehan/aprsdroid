@@ -14,7 +14,7 @@ import _root_.scala.math.{cos, Pi}
 
 object StorageDatabase {
 	val TAG = "APRSdroid.Storage"
-	val DB_VERSION = 6
+	val DB_VERSION = 7
 	val DB_NAME = "storage.db"
 
 	val TSS_COL = "DATETIME(TS/1000, 'unixepoch', 'localtime') as TSS"
@@ -201,12 +201,14 @@ object StorageDatabase {
 		val _ID = "_id"
 		val TS = "ts"
 		val VISIBLE = "visible"
+		val NAME = "name"
 		lazy val TABLE_CREATE = """CREATE TABLE %s (%s INTEGER PRIMARY KEY AUTOINCREMENT, %s LONG UNIQUE,
-			%s INTEGER DEFAULT 1)"""
-			.format(TABLE, _ID, TS, VISIBLE)
-		lazy val COLUMNS = Array(_ID, TS, VISIBLE)
+			%s INTEGER DEFAULT 1, %s TEXT)"""
+			.format(TABLE, _ID, TS, VISIBLE, NAME)
+		lazy val COLUMNS = Array(_ID, TS, VISIBLE, NAME)
 		val COLUMN_TS = 1
 		val COLUMN_VISIBLE = 2
+		val COLUMN_NAME = 3
 	}
 
 	var singleton : StorageDatabase = null
@@ -283,6 +285,10 @@ class StorageDatabase(context : Context) extends
 			// version 6 - GPX management metadata
 			db.execSQL(GPXMetadata.TABLE_CREATE)
 			db.execSQL(TABLE_INDEX.format(GPXMetadata.TABLE, "ts"))
+		}
+		if (from <= 6 && to >= 7) {
+			// version 7 - Add name column to GPX metadata
+			db.execSQL("ALTER TABLE " + GPXMetadata.TABLE + " ADD COLUMN " + GPXMetadata.NAME + " TEXT")
 		}
 	}
 
@@ -619,6 +625,38 @@ class StorageDatabase(context : Context) extends
 		val rows = db.update(TABLE, cv, TS + " = ?", Array(timestamp.toString))
 		if (rows == 0) {
 			db.insert(TABLE, null, cv)
+		}
+	}
+
+	def setGPXMetadata(timestamp: Long, visible: Boolean, name: String) {
+		import GPXMetadata._
+		val cv = new ContentValues()
+		cv.put(TS, timestamp.asInstanceOf[java.lang.Long])
+		cv.put(VISIBLE, (if (visible) 1 else 0).asInstanceOf[java.lang.Integer])
+		cv.put(NAME, name)
+		
+		val db = getWritableDatabase()
+		val rows = db.update(TABLE, cv, TS + " = ?", Array(timestamp.toString))
+		if (rows == 0) {
+			db.insert(TABLE, null, cv)
+		}
+	}
+
+	def getGPXName(timestamp: Long): String = {
+		val cursor = getReadableDatabase().query(
+			GPXMetadata.TABLE, GPXMetadata.COLUMNS,
+			GPXMetadata.TS + " = ?", Array(timestamp.toString),
+			null, null, null
+		)
+		try {
+			if (cursor.moveToFirst()) {
+				val name = cursor.getString(GPXMetadata.COLUMN_NAME)
+				if (name != null && name.nonEmpty) name else null
+			} else {
+				null
+			}
+		} finally {
+			cursor.close()
 		}
 	}
 
