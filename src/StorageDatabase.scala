@@ -14,7 +14,7 @@ import _root_.scala.math.{cos, Pi}
 
 object StorageDatabase {
 	val TAG = "APRSdroid.Storage"
-	val DB_VERSION = 4
+	val DB_VERSION = 6
 	val DB_NAME = "storage.db"
 
 	val TSS_COL = "DATETIME(TS/1000, 'unixepoch', 'localtime') as TSS"
@@ -154,6 +154,61 @@ object StorageDatabase {
 
 	}
 
+	object GPXWaypoint {
+		val TABLE = "gpx_waypoints"
+		val _ID = "_id"
+		val TS = "ts"
+		val NAME = "name"
+		val LAT = "lat"
+		val LON = "lon"
+		val SYMBOL = "symbol"
+		val COMMENT = "comment"
+		val ELEVATION = "elevation"
+		lazy val TABLE_CREATE = """CREATE TABLE %s (%s INTEGER PRIMARY KEY AUTOINCREMENT, %s LONG,
+			%s TEXT, %s INTEGER, %s INTEGER, %s TEXT, %s TEXT, %s INTEGER)"""
+			.format(TABLE, _ID, TS, NAME, LAT, LON, SYMBOL, COMMENT, ELEVATION)
+		lazy val COLUMNS = Array(_ID, TS, NAME, LAT, LON, SYMBOL, COMMENT, ELEVATION)
+		val COLUMN_TS = 1
+		val COLUMN_NAME = 2
+		val COLUMN_LAT = 3
+		val COLUMN_LON = 4
+		val COLUMN_SYMBOL = 5
+		val COLUMN_COMMENT = 6
+		val COLUMN_ELEVATION = 7
+	}
+
+	object GPXTrack {
+		val TABLE = "gpx_tracks"
+		val _ID = "_id"
+		val TS = "ts"
+		val NAME = "name"
+		val LAT = "lat"
+		val LON = "lon"
+		val ELEVATION = "elevation"
+		lazy val TABLE_CREATE = """CREATE TABLE %s (%s INTEGER PRIMARY KEY AUTOINCREMENT, %s LONG,
+			%s TEXT, %s INTEGER, %s INTEGER, %s INTEGER)"""
+			.format(TABLE, _ID, TS, NAME, LAT, LON, ELEVATION)
+		lazy val COLUMNS = Array(_ID, TS, NAME, LAT, LON, ELEVATION)
+		val COLUMN_TS = 1
+		val COLUMN_NAME = 2
+		val COLUMN_LAT = 3
+		val COLUMN_LON = 4
+		val COLUMN_ELEVATION = 5
+	}
+
+	object GPXMetadata {
+		val TABLE = "gpx_metadata"
+		val _ID = "_id"
+		val TS = "ts"
+		val VISIBLE = "visible"
+		lazy val TABLE_CREATE = """CREATE TABLE %s (%s INTEGER PRIMARY KEY AUTOINCREMENT, %s LONG UNIQUE,
+			%s INTEGER DEFAULT 1)"""
+			.format(TABLE, _ID, TS, VISIBLE)
+		lazy val COLUMNS = Array(_ID, TS, VISIBLE)
+		val COLUMN_TS = 1
+		val COLUMN_VISIBLE = 2
+	}
+
 	var singleton : StorageDatabase = null
 	def open(context : Context) : StorageDatabase = {
 		if (singleton == null) {
@@ -193,6 +248,13 @@ class StorageDatabase(context : Context) extends
 		// version 4
 		Array(Position.TABLE, Station.TABLE).map(tab => db.execSQL(TABLE_INDEX.format(tab, "ts")))
 		Array("call", "type").map(col => db.execSQL(TABLE_INDEX.format(Message.TABLE, col)))
+		// version 5 - GPX support
+		db.execSQL(GPXWaypoint.TABLE_CREATE)
+		db.execSQL(GPXTrack.TABLE_CREATE)
+		Array(GPXWaypoint.TABLE, GPXTrack.TABLE).map(tab => db.execSQL(TABLE_INDEX.format(tab, "ts")))
+		// version 6 - GPX management metadata
+		db.execSQL(GPXMetadata.TABLE_CREATE)
+		db.execSQL(TABLE_INDEX.format(GPXMetadata.TABLE, "ts"))
 	}
 
 	override def onUpgrade(db: SQLiteDatabase, from : Int, to : Int) {
@@ -208,8 +270,19 @@ class StorageDatabase(context : Context) extends
 			db.execSQL(Position.TABLE_CREATE)
 		}
 		if (to <= 4) {
-			Array(Position.TABLE, Station.TABLE).map(tab => db.execSQL(TABLE_INDEX.format(tab, "ts", "ts")))
-			Array("call", "type").map(col => db.execSQL(TABLE_INDEX.format(Message.TABLE, col, col)))
+			Array(Position.TABLE, Station.TABLE).map(tab => db.execSQL(TABLE_INDEX.format(tab, "ts")))
+			Array("call", "type").map(col => db.execSQL(TABLE_INDEX.format(Message.TABLE, col)))
+		}
+		if (from <= 4 && to >= 5) {
+			// version 5 - GPX support
+			db.execSQL(GPXWaypoint.TABLE_CREATE)
+			db.execSQL(GPXTrack.TABLE_CREATE)
+			Array(GPXWaypoint.TABLE, GPXTrack.TABLE).map(tab => db.execSQL(TABLE_INDEX.format(tab, "ts")))
+		}
+		if (from <= 5 && to >= 6) {
+			// version 6 - GPX management metadata
+			db.execSQL(GPXMetadata.TABLE_CREATE)
+			db.execSQL(TABLE_INDEX.format(GPXMetadata.TABLE, "ts"))
 		}
 	}
 
@@ -450,6 +523,138 @@ class StorageDatabase(context : Context) extends
 			null, null,
 			"call", null,
 			"_id DESC", null)
+	}
+
+	def addGPXWaypoint(ts: Long, name: String, lat: Int, lon: Int, symbol: String, comment: String, elevation: Int) {
+		import GPXWaypoint._
+		val cv = new ContentValues()
+		cv.put(TS, ts.asInstanceOf[java.lang.Long])
+		cv.put(NAME, name)
+		cv.put(LAT, lat.asInstanceOf[java.lang.Integer])
+		cv.put(LON, lon.asInstanceOf[java.lang.Integer])
+		cv.put(SYMBOL, symbol)
+		cv.put(COMMENT, comment)
+		cv.put(ELEVATION, elevation.asInstanceOf[java.lang.Integer])
+		getWritableDatabase().insertOrThrow(TABLE, NAME, cv)
+	}
+
+	def addGPXTrackPoint(ts: Long, name: String, lat: Int, lon: Int, elevation: Int) {
+		import GPXTrack._
+		val cv = new ContentValues()
+		cv.put(TS, ts.asInstanceOf[java.lang.Long])
+		cv.put(NAME, name)
+		cv.put(LAT, lat.asInstanceOf[java.lang.Integer])
+		cv.put(LON, lon.asInstanceOf[java.lang.Integer])
+		cv.put(ELEVATION, elevation.asInstanceOf[java.lang.Integer])
+		getWritableDatabase().insertOrThrow(TABLE, NAME, cv)
+	}
+
+	def getGPXWaypoints() = {
+		getReadableDatabase().query(GPXWaypoint.TABLE, GPXWaypoint.COLUMNS,
+			null, null, null, null, GPXWaypoint.TS + " DESC", null)
+	}
+
+	def getGPXTracks() = {
+		getReadableDatabase().query(GPXTrack.TABLE, GPXTrack.COLUMNS,
+			null, null, null, null, GPXTrack.TS + " ASC", null)
+	}
+
+	def clearGPXData() {
+		getWritableDatabase().execSQL("DELETE FROM " + GPXWaypoint.TABLE)
+		getWritableDatabase().execSQL("DELETE FROM " + GPXTrack.TABLE)
+		getWritableDatabase().execSQL("DELETE FROM " + GPXMetadata.TABLE)
+	}
+
+	def getGPXWaypointCount(timestamp: Long): Int = {
+		val cursor = getReadableDatabase().rawQuery(
+			"SELECT COUNT(*) FROM " + GPXWaypoint.TABLE + " WHERE " + GPXWaypoint.TS + " = ?",
+			Array(timestamp.toString)
+		)
+		try {
+			cursor.moveToFirst()
+			cursor.getInt(0)
+		} finally {
+			cursor.close()
+		}
+	}
+
+	def getGPXTrackCount(timestamp: Long): Int = {
+		val cursor = getReadableDatabase().rawQuery(
+			"SELECT COUNT(DISTINCT " + GPXTrack.NAME + ") FROM " + GPXTrack.TABLE + " WHERE " + GPXTrack.TS + " = ?",
+			Array(timestamp.toString)
+		)
+		try {
+			cursor.moveToFirst()
+			cursor.getInt(0)
+		} finally {
+			cursor.close()
+		}
+	}
+
+	def getGPXVisibility(timestamp: Long): Boolean = {
+		val cursor = getReadableDatabase().query(
+			GPXMetadata.TABLE, GPXMetadata.COLUMNS,
+			GPXMetadata.TS + " = ?", Array(timestamp.toString),
+			null, null, null
+		)
+		try {
+			if (cursor.moveToFirst()) {
+				cursor.getInt(GPXMetadata.COLUMN_VISIBLE) == 1
+			} else {
+				// Default to visible if no metadata exists
+				true
+			}
+		} finally {
+			cursor.close()
+		}
+	}
+
+	def setGPXVisibility(timestamp: Long, visible: Boolean) {
+		import GPXMetadata._
+		val cv = new ContentValues()
+		cv.put(TS, timestamp.asInstanceOf[java.lang.Long])
+		cv.put(VISIBLE, (if (visible) 1 else 0).asInstanceOf[java.lang.Integer])
+		
+		val db = getWritableDatabase()
+		val rows = db.update(TABLE, cv, TS + " = ?", Array(timestamp.toString))
+		if (rows == 0) {
+			db.insert(TABLE, null, cv)
+		}
+	}
+
+	def removeGPXData(timestamp: Long) {
+		getWritableDatabase().execSQL(
+			"DELETE FROM " + GPXWaypoint.TABLE + " WHERE " + GPXWaypoint.TS + " = ?",
+			Array(timestamp.toString)
+		)
+		getWritableDatabase().execSQL(
+			"DELETE FROM " + GPXTrack.TABLE + " WHERE " + GPXTrack.TS + " = ?",
+			Array(timestamp.toString)
+		)
+		getWritableDatabase().execSQL(
+			"DELETE FROM " + GPXMetadata.TABLE + " WHERE " + GPXMetadata.TS + " = ?",
+			Array(timestamp.toString)
+		)
+	}
+
+	def getVisibleGPXWaypoints() = {
+		getReadableDatabase().rawQuery(
+			"SELECT w._id, w.ts, w.name, w.lat, w.lon, w.symbol, w.comment, w.elevation FROM " + GPXWaypoint.TABLE + " w " +
+			"LEFT JOIN " + GPXMetadata.TABLE + " m ON w." + GPXWaypoint.TS + " = m." + GPXMetadata.TS + " " +
+			"WHERE m." + GPXMetadata.VISIBLE + " = 1 OR m." + GPXMetadata.VISIBLE + " IS NULL " +
+			"ORDER BY w." + GPXWaypoint.TS + " DESC",
+			null
+		)
+	}
+
+	def getVisibleGPXTracks() = {
+		getReadableDatabase().rawQuery(
+			"SELECT t._id, t.ts, t.name, t.lat, t.lon, t.elevation FROM " + GPXTrack.TABLE + " t " +
+			"LEFT JOIN " + GPXMetadata.TABLE + " m ON t." + GPXTrack.TS + " = m." + GPXMetadata.TS + " " +
+			"WHERE m." + GPXMetadata.VISIBLE + " = 1 OR m." + GPXMetadata.VISIBLE + " IS NULL " +
+			"ORDER BY t." + GPXTrack.TS + " ASC",
+			null
+		)
 	}
 
 }

@@ -36,6 +36,7 @@ class MapAct extends MapActivity with MapMenuHelper {
 	lazy val allicons = this.getResources().getDrawable(R.drawable.allicons)
 	lazy val db = StorageDatabase.open(this)
 	lazy val staoverlay = new StationOverlay(allicons, this, db)
+	lazy val gpxoverlay = new GPXOverlay(this, db)
 	lazy val loading = findViewById(R.id.loading).asInstanceOf[View]
 	lazy val locReceiver = new LocationReceiver2[ArrayList[OSMStation]](staoverlay.load_stations,
 			staoverlay.replace_stations, staoverlay.cancel_stations)
@@ -45,7 +46,11 @@ class MapAct extends MapActivity with MapMenuHelper {
 		setContentView(R.layout.mapview)
 		mapview.setBuiltInZoomControls(true)
 		mapview.getOverlays().add(staoverlay)
+		mapview.getOverlays().add(gpxoverlay)
 		mapview.setTextScale(getResources().getDisplayMetrics().density)
+		
+		// Load GPX data if available
+		gpxoverlay.loadGPXData()
 
 		startLoading()
 	}
@@ -61,6 +66,10 @@ class MapAct extends MapActivity with MapMenuHelper {
 			setLongTitle(R.string.app_map, targetcall)
 		setKeepScreenOn()
 		setVolumeControls()
+		// Refresh GPX data on resume
+		gpxoverlay.refresh()
+		// Force map view redraw
+		mapview.postInvalidate()
 		//checkPermissions(Array(Manifest.permission.READ_EXTERNAL_STORAGE, Manifest.permission.WRITE_EXTERNAL_STORAGE), RELOAD_MAP)
 		reloadMapAndTheme()
 		mapview.requestFocus()

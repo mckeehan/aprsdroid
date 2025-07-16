@@ -144,6 +144,9 @@ trait MapMenuHelper extends UIHelper with OnClickListener {
 			showObjects = newState
 			reloadMap()
 			true
+		case R.id.gpx_management =>
+			startActivity(new Intent(this, classOf[GPXManagementActivity]))
+			true
 		case _ =>
 			if (targetcall != "" && callsignAction(mi.getItemId, targetcall))
 				true

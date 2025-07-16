@@ -425,6 +425,25 @@
 <string name="profile_import_done">Imported profile: %s</string>
 <string name="profile_import_error">Error importing profile: %s!</string>
 
+<!-- GPX import -->
+<string name="gpx_import_activity">GPX import</string>
+<string name="gpx_import_done">Imported %s GPX items from: %s</string>
+<string name="gpx_import_error">Error importing GPX file: %s!</string>
+
+<!-- GPX management -->
+<string name="gpx_management_title">Manage GPX Files</string>
+<string name="gpx_management_activity">GPX Management</string>
+<string name="gpx_clear_all">Clear All GPX Data</string>
+<string name="gpx_clear_all_title">Clear All GPX Data</string>
+<string name="gpx_clear_all_message">Are you sure you want to remove all imported GPX files? This action cannot be undone.</string>
+<string name="gpx_remove">Remove</string>
+<string name="gpx_remove_title">Remove GPX File</string>
+<string name="gpx_remove_message">Are you sure you want to remove this GPX file? This action cannot be undone.</string>
+<string name="gpx_cleared">All GPX data cleared</string>
+<string name="gpx_removed">GPX file removed</string>
+<string name="yes">Yes</string>
+<string name="no">No</string>
+
 <!-- (USB) Serial TNC settings -->
 <string name="p_serial_baudrate">Baud Rate</string>
 <string name="p_serial_baudrate_summary">Data rate of the serial port</string>

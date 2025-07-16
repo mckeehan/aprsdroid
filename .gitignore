@@ -2,6 +2,7 @@
 *.swp
 *~
 .gradle/
+.claude/
 build/
 bin
 gen

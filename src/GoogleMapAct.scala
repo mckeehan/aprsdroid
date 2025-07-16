@@ -24,6 +24,7 @@ class GoogleMapAct extends Activity with MapLoaderBase
         lazy val mapview = findViewById(R.id.mapview).asInstanceOf[MapView]
         var map : GoogleMap = null
         lazy val icons = mutable.HashMap[String, BitmapDescriptor]()
+        var gpxoverlay: GoogleGPXOverlay = null
         var visible_callsigns = true
         var first_load = true
         val CALLSIGN_ZOOM = 8
@@ -47,6 +48,11 @@ class GoogleMapAct extends Activity with MapLoaderBase
                                 map.getUiSettings().setCompassEnabled(true)
                                 map.getUiSettings().setZoomControlsEnabled(true)
                                 visible_callsigns = (map.getCameraPosition().zoom > CALLSIGN_ZOOM)
+                                
+                                // Initialize GPX overlay
+                                gpxoverlay = new GoogleGPXOverlay(GoogleMapAct.this, db, map)
+                                gpxoverlay.loadGPXData()
+                                
                                 startLoading()
                         }
                 })
@@ -69,6 +75,10 @@ class GoogleMapAct extends Activity with MapLoaderBase
                 setKeepScreenOn()
                 setVolumeControls()
                 mapview.onResume()
+                // Refresh GPX data on resume
+                if (gpxoverlay != null) {
+                        gpxoverlay.refresh()
+                }
                 if (targetcall != "")
                         startFollowStation(targetcall)
         }
